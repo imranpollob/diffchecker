@@ -40,15 +40,3 @@ To run the unit tests for the diff engine:
 ```bash
 node test/diff-engine.test.js
 ```
-
-## Deployment
-
-To deploy to GitHub Pages:
-
-1. Push this repository to GitHub.
-2. In your repo, go to **Settings** > **Pages**.
-3. Under **Source**, select **Deploy from a branch** (`main` branch, `/ (root)` folder) and click **Save**.
-
-## License
-
-[MIT](LICENSE)
