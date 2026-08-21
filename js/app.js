@@ -133,14 +133,6 @@
 
     compareBtn.addEventListener('click', () => performDiff());
 
-    // Keyboard shortcut Ctrl+Enter or Cmd+Enter
-    document.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        performDiff();
-      }
-    });
-
     swapTextsBtn.addEventListener('click', swapTexts);
     sampleBtn.addEventListener('click', loadSample);
     clearAllBtn.addEventListener('click', clearAll);

@@ -49,13 +49,36 @@ console.log('Running DiffEngine test suite...\n');
   // Row 1: cat vs cart (char 'r' added)
   assert.strictEqual(splitChar[0].type, 'modified');
   assert(splitChar[0].right.html.includes('<span class="diff-token-add">r</span>'));
-  
+
   // Row 2: grey vs gray (char 'e' deleted, char 'a' added)
   assert.strictEqual(splitChar[1].type, 'modified');
   assert(splitChar[1].left.html.includes('<span class="diff-token-del">e</span>'));
   assert(splitChar[1].right.html.includes('<span class="diff-token-add">a</span>'));
 
   console.log('✓ Test 3 Passed: Char Diff in Split View');
+}
+
+// Test 3b: Contiguous added/deleted words merged into a single span
+{
+  const lineA = 'const x = 1;';
+  const lineB = 'const x = calculateTotal(items, 0.05);';
+  const intra = DiffEngine.computeIntraLineDiff(lineA, lineB, { diffMode: 'word' });
+
+  // The entire expression "calculateTotal(items, 0.05);" is merged into a single continuous highlight
+  assert.strictEqual(intra.addHtml, 'const x = <span class="diff-token-add">calculateTotal(items, 0.05);</span>');
+  assert.strictEqual(intra.delHtml, 'const x = <span class="diff-token-del">1;</span>');
+  console.log('✓ Test 3b Passed: Contiguous added/deleted words merged into a single span');
+}
+
+// Test 3c: Multi-word phrase removal merged into one single block
+{
+  const lineA = '  // Calculate tax amount';
+  const lineB = '  // Apply discount if provided';
+  const intra = DiffEngine.computeIntraLineDiff(lineA, lineB, { diffMode: 'word' });
+
+  assert.strictEqual(intra.delHtml, '  // <span class="diff-token-del">Calculate tax amount</span>');
+  assert.strictEqual(intra.addHtml, '  // <span class="diff-token-add">Apply discount if provided</span>');
+  console.log('✓ Test 3c Passed: Multi-word phrase removal merged into one single block');
 }
 
 // Test 4: Ignore Blank Lines
@@ -75,7 +98,7 @@ console.log('Running DiffEngine test suite...\n');
 {
   const textA = 'HELLO  WORLD\n';
   const textB = 'hello world\n';
-  
+
   const editsStrict = DiffEngine.computeLineDiff(textA, textB);
   assert.strictEqual(DiffEngine.computeStats(editsStrict).isIdentical, false);
 
@@ -87,7 +110,7 @@ console.log('Running DiffEngine test suite...\n');
 // Test 6: Empty inputs and edge cases
 {
   assert.deepStrictEqual(DiffEngine.computeLineDiff('', ''), []);
-  
+
   const editsFromEmpty = DiffEngine.computeLineDiff('', 'Line 1\nLine 2');
   assert.strictEqual(editsFromEmpty.length, 2);
   assert.strictEqual(editsFromEmpty[0].type, 'add');

@@ -5,7 +5,7 @@
  * ignoring whitespace, case, and blank lines.
  */
 
-(function(global) {
+(function (global) {
   'use strict';
 
   const DiffEngine = {};
@@ -74,7 +74,7 @@
     if (n === 0) return b.map((val, idx) => ({ type: 'add', value: val, indexB: idx }));
     if (m === 0) return a.map((val, idx) => ({ type: 'del', value: val, indexA: idx }));
 
-    const compare = customCompare || function(itemA, itemB) {
+    const compare = customCompare || function (itemA, itemB) {
       let strA = itemA;
       let strB = itemB;
 
@@ -193,8 +193,91 @@
   DiffEngine.computeCharDiff = computeCharDiff;
 
   /**
+   * Helper to merge consecutive edits of the same type into single contiguous blocks.
+   */
+  function mergeConsecutiveEdits(edits) {
+    if (!edits || edits.length === 0) return [];
+    const merged = [];
+    let current = null;
+
+    for (const edit of edits) {
+      if (!current) {
+        current = { type: edit.type, value: edit.value };
+      } else if (current.type === edit.type) {
+        current.value += edit.value;
+      } else {
+        merged.push(current);
+        current = { type: edit.type, value: edit.value };
+      }
+    }
+
+    if (current) {
+      merged.push(current);
+    }
+
+    return merged;
+  }
+
+  DiffEngine.mergeConsecutiveEdits = mergeConsecutiveEdits;
+
+  /**
+   * Builds highlighted HTML for a line by extracting tokens for that line,
+   * absorbing whitespace between adjacent modifications, and merging into
+   * seamless contiguous highlight blocks.
+   *
+   * @param {Array} edits - The raw Myers diff edit tokens
+   * @param {string} targetType - 'del' for left line, 'add' for right line
+   * @returns {string} Escaped HTML with unified highlight spans
+   */
+  function buildLineHighlightHtml(edits, targetType) {
+    // 1. Extract tokens that belong to this side (either 'equal' or targetType)
+    const lineTokens = [];
+    for (const edit of edits) {
+      if (edit.type === 'equal' || edit.type === targetType) {
+        lineTokens.push({
+          type: edit.type,
+          value: edit.value
+        });
+      }
+    }
+
+    // 2. Absorb whitespace sandwiched between two modifications of targetType
+    for (let i = 1; i < lineTokens.length - 1; i++) {
+      if (
+        lineTokens[i].type === 'equal' &&
+        /^\s+$/.test(lineTokens[i].value) &&
+        lineTokens[i - 1].type === targetType &&
+        lineTokens[i + 1].type === targetType
+      ) {
+        lineTokens[i].type = targetType;
+      }
+    }
+
+    // 3. Merge consecutive tokens of the same type
+    const merged = mergeConsecutiveEdits(lineTokens);
+
+    // 4. Generate HTML
+    let html = '';
+    const spanClass = targetType === 'del' ? 'diff-token-del' : 'diff-token-add';
+
+    for (const token of merged) {
+      const escaped = escapeHtml(token.value);
+      if (token.type === targetType) {
+        html += `<span class="${spanClass}">${escaped}</span>`;
+      } else {
+        html += escaped;
+      }
+    }
+
+    return html;
+  }
+
+  DiffEngine.buildLineHighlightHtml = buildLineHighlightHtml;
+
+  /**
    * Intra-line diffing for modified line pairs (word-level or char-level).
-   * Produces highlighted HTML for left (del) and right (add) lines.
+   * Produces highlighted HTML for left (del) and right (add) lines,
+   * merging contiguous words and spaces into seamless highlighted blocks.
    */
   function computeIntraLineDiff(delLine, addLine, options = {}) {
     if (delLine === null || addLine === null) {
@@ -205,24 +288,12 @@
     }
 
     const mode = options.diffMode === 'char' ? 'char' : 'word';
-    const subEdits = mode === 'char'
+    const rawEdits = mode === 'char'
       ? computeCharDiff(delLine, addLine, options)
       : computeWordDiff(delLine, addLine, options);
 
-    let delHtml = '';
-    let addHtml = '';
-
-    for (const edit of subEdits) {
-      const escaped = escapeHtml(edit.value);
-      if (edit.type === 'equal') {
-        delHtml += escaped;
-        addHtml += escaped;
-      } else if (edit.type === 'del') {
-        delHtml += `<span class="diff-token-del">${escaped}</span>`;
-      } else if (edit.type === 'add') {
-        addHtml += `<span class="diff-token-add">${escaped}</span>`;
-      }
-    }
+    const delHtml = buildLineHighlightHtml(rawEdits, 'del');
+    const addHtml = buildLineHighlightHtml(rawEdits, 'add');
 
     return { delHtml, addHtml };
   }
