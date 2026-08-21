@@ -68,6 +68,7 @@
             </span>
             <span class="pane-stats" id="originalStats">0 lines, 0 chars</span>
             <div class="pane-actions">
+              <button id="copyOriginalBtn" class="btn-ghost-sm" title="Copy original text">Copy</button>
               <button id="pasteOriginalBtn" class="btn-ghost-sm" title="Paste from clipboard">Paste</button>
               <button id="clearOriginalBtn" class="btn-ghost-sm" title="Clear text">Clear</button>
             </div>
@@ -103,6 +104,7 @@
             </span>
             <span class="pane-stats" id="changedStats">0 lines, 0 chars</span>
             <div class="pane-actions">
+              <button id="copyChangedBtn" class="btn-ghost-sm" title="Copy changed text">Copy</button>
               <button id="pasteChangedBtn" class="btn-ghost-sm" title="Paste from clipboard">Paste</button>
               <button id="clearChangedBtn" class="btn-ghost-sm" title="Clear text">Clear</button>
             </div>
@@ -173,7 +175,7 @@
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
             </svg>
-            Copy Text
+            Copy Changed Text
           </button>
         </div>
       </div>
@@ -204,6 +206,42 @@
     <p>Diffchecker &bull; Fast, private, client-side text diffing hosted on <a href="https://pages.github.com"
         target="_blank" rel="noopener">GitHub Pages</a>.</p>
   </footer>
+
+  <!-- Selection Action Tooltip & Replace Popover -->
+  <div id="diffSelectionTooltip" class="diff-selection-tooltip" style="display: none;">
+    <!-- Action Buttons Bar -->
+    <div class="tooltip-actions" id="tooltipActions">
+      <button id="tooltipCopyBtn" class="tooltip-btn" title="Copy selected text">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <span>Copy</span>
+      </button>
+      <div class="tooltip-divider"></div>
+      <button id="tooltipReplaceBtn" class="tooltip-btn" title="Replace selected text">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+        <span>Replace</span>
+      </button>
+    </div>
+
+    <!-- Replace Popover Form -->
+    <div class="tooltip-replace-form" id="tooltipReplaceForm" style="display: none;">
+      <div class="replace-form-header">
+        <span class="replace-form-title" id="replaceFormTitle">Replace Text</span>
+        <button id="closeReplaceFormBtn" class="btn-ghost-icon" title="Close">&times;</button>
+      </div>
+      <textarea id="replaceInput" class="replace-textarea" placeholder="Enter replacement text..." rows="5"
+        spellcheck="false"></textarea>
+      <div class="replace-form-actions">
+        <button id="cancelReplaceBtn" class="btn-secondary-sm">Cancel</button>
+        <button id="confirmReplaceBtn" class="btn-primary-sm">Replace</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Notification -->
   <div id="toast" class="toast">Copied to clipboard!</div>
