@@ -1,0 +1,390 @@
+/**
+ * Pure standalone diff engine implementing the Myers Diff Algorithm.
+ * Supports line-by-line diff with intra-line word-level and character-level
+ * difference highlighting in split side-by-side view, with support for
+ * ignoring whitespace, case, and blank lines.
+ */
+
+(function(global) {
+  'use strict';
+
+  const DiffEngine = {};
+
+  /**
+   * Escape HTML special characters.
+   */
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  DiffEngine.escapeHtml = escapeHtml;
+
+  /**
+   * Tokenizers
+   */
+  function tokenizeLines(text, options = {}) {
+    if (text === '') return [];
+    // Normalize newlines and split into lines
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    let lines = normalized.split('\n');
+    if (options.ignoreBlankLines) {
+      lines = lines.filter(line => line.trim() !== '');
+    }
+    return lines;
+  }
+
+  function tokenizeWords(text) {
+    if (!text) return [];
+    // Tokenize keeping words, whitespace, and punctuation distinct
+    const matches = text.match(/[\w\u00C0-\u024F]+|[^\w\s\u00C0-\u024F]+|\s+/g);
+    return matches || [];
+  }
+
+  function tokenizeChars(text) {
+    if (!text) return [];
+    return Array.from(text);
+  }
+
+  DiffEngine.tokenizeLines = tokenizeLines;
+  DiffEngine.tokenizeWords = tokenizeWords;
+  DiffEngine.tokenizeChars = tokenizeChars;
+
+  /**
+   * Core Myers Diff Algorithm
+   * Finds the Shortest Edit Script (SES) between array A and array B.
+   *
+   * @param {Array} a - Original array of items
+   * @param {Array} b - Changed array of items
+   * @param {Object} options - { ignoreCase, ignoreWhitespace, ignoreBlankLines }
+   * @param {Function} [customCompare] - Optional custom equality function
+   * @returns {Array} Array of edit operations { type: 'equal'|'add'|'del', value: item, indexA, indexB }
+   */
+  function myersDiff(a, b, options = {}, customCompare = null) {
+    const n = a.length;
+    const m = b.length;
+
+    // Fast paths
+    if (n === 0 && m === 0) return [];
+    if (n === 0) return b.map((val, idx) => ({ type: 'add', value: val, indexB: idx }));
+    if (m === 0) return a.map((val, idx) => ({ type: 'del', value: val, indexA: idx }));
+
+    const compare = customCompare || function(itemA, itemB) {
+      let strA = itemA;
+      let strB = itemB;
+
+      if (options.ignoreCase) {
+        strA = strA.toLowerCase();
+        strB = strB.toLowerCase();
+      }
+
+      if (options.ignoreWhitespace) {
+        strA = strA.replace(/\s+/g, ' ').trim();
+        strB = strB.replace(/\s+/g, ' ').trim();
+      }
+
+      return strA === strB;
+    };
+
+    const max = n + m;
+    const vOffset = max;
+    const v = new Int32Array(2 * max + 1);
+    v.fill(-1);
+    v[1 + vOffset] = 0;
+
+    const trace = [];
+
+    for (let d = 0; d <= max; d++) {
+      const vCopy = new Int32Array(v);
+      trace.push(vCopy);
+
+      for (let k = -d; k <= d; k += 2) {
+        let x;
+        if (k === -d || (k !== d && v[k - 1 + vOffset] < v[k + 1 + vOffset])) {
+          x = v[k + 1 + vOffset];
+        } else {
+          x = v[k - 1 + vOffset] + 1;
+        }
+
+        let y = x - k;
+
+        while (x < n && y < m && compare(a[x], b[y])) {
+          x++;
+          y++;
+        }
+
+        v[k + vOffset] = x;
+
+        if (x >= n && y >= m) {
+          return backtrack(trace, a, b, vOffset);
+        }
+      }
+    }
+
+    return [];
+  }
+
+  function backtrack(trace, a, b, vOffset) {
+    let x = a.length;
+    let y = b.length;
+    const edits = [];
+
+    for (let d = trace.length - 1; d >= 0; d--) {
+      const v = trace[d];
+      const k = x - y;
+
+      let prevK;
+      if (k === -d || (k !== d && v[k - 1 + vOffset] < v[k + 1 + vOffset])) {
+        prevK = k + 1;
+      } else {
+        prevK = k - 1;
+      }
+
+      const prevX = v[prevK + vOffset];
+      const prevY = prevX - prevK;
+
+      while (x > prevX && y > prevY) {
+        x--;
+        y--;
+        edits.unshift({ type: 'equal', value: a[x], originalValue: a[x], changedValue: b[y], indexA: x, indexB: y });
+      }
+
+      if (d > 0) {
+        if (x === prevX) {
+          y--;
+          edits.unshift({ type: 'add', value: b[y], indexB: y });
+        } else if (y === prevY) {
+          x--;
+          edits.unshift({ type: 'del', value: a[x], indexA: x });
+        }
+      }
+    }
+
+    return edits;
+  }
+
+  DiffEngine.myersDiff = myersDiff;
+
+  /**
+   * Word-level diff.
+   */
+  function computeWordDiff(textA, textB, options = {}) {
+    const wordsA = tokenizeWords(textA);
+    const wordsB = tokenizeWords(textB);
+    return myersDiff(wordsA, wordsB, options);
+  }
+
+  DiffEngine.computeWordDiff = computeWordDiff;
+
+  /**
+   * Character-level diff.
+   */
+  function computeCharDiff(textA, textB, options = {}) {
+    const charsA = tokenizeChars(textA);
+    const charsB = tokenizeChars(textB);
+    return myersDiff(charsA, charsB, options);
+  }
+
+  DiffEngine.computeCharDiff = computeCharDiff;
+
+  /**
+   * Intra-line diffing for modified line pairs (word-level or char-level).
+   * Produces highlighted HTML for left (del) and right (add) lines.
+   */
+  function computeIntraLineDiff(delLine, addLine, options = {}) {
+    if (delLine === null || addLine === null) {
+      return {
+        delHtml: delLine !== null ? escapeHtml(delLine) : '',
+        addHtml: addLine !== null ? escapeHtml(addLine) : ''
+      };
+    }
+
+    const mode = options.diffMode === 'char' ? 'char' : 'word';
+    const subEdits = mode === 'char'
+      ? computeCharDiff(delLine, addLine, options)
+      : computeWordDiff(delLine, addLine, options);
+
+    let delHtml = '';
+    let addHtml = '';
+
+    for (const edit of subEdits) {
+      const escaped = escapeHtml(edit.value);
+      if (edit.type === 'equal') {
+        delHtml += escaped;
+        addHtml += escaped;
+      } else if (edit.type === 'del') {
+        delHtml += `<span class="diff-token-del">${escaped}</span>`;
+      } else if (edit.type === 'add') {
+        addHtml += `<span class="diff-token-add">${escaped}</span>`;
+      }
+    }
+
+    return { delHtml, addHtml };
+  }
+
+  DiffEngine.computeIntraLineDiff = computeIntraLineDiff;
+
+  /**
+   * Compute line-level diff with Myers algorithm.
+   */
+  function computeLineDiff(textA, textB, options = {}) {
+    const linesA = tokenizeLines(textA, options);
+    const linesB = tokenizeLines(textB, options);
+    return myersDiff(linesA, linesB, options);
+  }
+
+  DiffEngine.computeLineDiff = computeLineDiff;
+
+  /**
+   * Align line diff into Side-by-Side (Split) structure with intra-line word/char highlights.
+   *
+   * @param {Array} rawEdits - Raw edit operations from computeLineDiff
+   * @param {Object} options - { ignoreCase, ignoreWhitespace, ignoreBlankLines, diffMode }
+   * @returns {Array} Array of row pairs { left: LineInfo|null, right: LineInfo|null }
+   */
+  function alignSplitDiff(rawEdits, options = {}) {
+    const rows = [];
+    let oldLineNum = 1;
+    let newLineNum = 1;
+
+    let i = 0;
+    while (i < rawEdits.length) {
+      const edit = rawEdits[i];
+
+      if (edit.type === 'equal') {
+        rows.push({
+          type: 'equal',
+          left: {
+            lineNum: oldLineNum++,
+            content: edit.originalValue,
+            html: escapeHtml(edit.originalValue),
+            type: 'equal'
+          },
+          right: {
+            lineNum: newLineNum++,
+            content: edit.changedValue,
+            html: escapeHtml(edit.changedValue),
+            type: 'equal'
+          }
+        });
+        i++;
+      } else {
+        // Collect consecutive deletes and adds
+        const delBlock = [];
+        const addBlock = [];
+
+        while (i < rawEdits.length && rawEdits[i].type !== 'equal') {
+          if (rawEdits[i].type === 'del') {
+            delBlock.push(rawEdits[i]);
+          } else if (rawEdits[i].type === 'add') {
+            addBlock.push(rawEdits[i]);
+          }
+          i++;
+        }
+
+        const maxCount = Math.max(delBlock.length, addBlock.length);
+        for (let j = 0; j < maxCount; j++) {
+          const hasDel = j < delBlock.length;
+          const hasAdd = j < addBlock.length;
+
+          let leftInfo = null;
+          let rightInfo = null;
+          let rowType = 'modified';
+
+          if (hasDel && hasAdd) {
+            // Paired modification -> compute intra-line word/char highlights
+            const delVal = delBlock[j].value;
+            const addVal = addBlock[j].value;
+            const intra = computeIntraLineDiff(delVal, addVal, options);
+
+            leftInfo = {
+              lineNum: oldLineNum++,
+              content: delVal,
+              html: intra.delHtml,
+              type: 'del',
+              isModified: true
+            };
+            rightInfo = {
+              lineNum: newLineNum++,
+              content: addVal,
+              html: intra.addHtml,
+              type: 'add',
+              isModified: true
+            };
+            rowType = 'modified';
+          } else if (hasDel) {
+            const delVal = delBlock[j].value;
+            leftInfo = {
+              lineNum: oldLineNum++,
+              content: delVal,
+              html: escapeHtml(delVal),
+              type: 'del',
+              isModified: false
+            };
+            rightInfo = null;
+            rowType = 'del';
+          } else if (hasAdd) {
+            const addVal = addBlock[j].value;
+            leftInfo = null;
+            rightInfo = {
+              lineNum: newLineNum++,
+              content: addVal,
+              html: escapeHtml(addVal),
+              type: 'add',
+              isModified: false
+            };
+            rowType = 'add';
+          }
+
+          rows.push({
+            type: rowType,
+            left: leftInfo,
+            right: rightInfo
+          });
+        }
+      }
+    }
+
+    return rows;
+  }
+
+  DiffEngine.alignSplitDiff = alignSplitDiff;
+
+  /**
+   * Compute overall statistics of the diff.
+   */
+  function computeStats(rawEdits) {
+    let additions = 0;
+    let deletions = 0;
+    let unchanged = 0;
+
+    for (const edit of rawEdits) {
+      if (edit.type === 'add') additions++;
+      else if (edit.type === 'del') deletions++;
+      else if (edit.type === 'equal') unchanged++;
+    }
+
+    return {
+      additions,
+      deletions,
+      unchanged,
+      totalChanges: additions + deletions,
+      isIdentical: additions === 0 && deletions === 0
+    };
+  }
+
+  DiffEngine.computeStats = computeStats;
+
+  // Export to global / window or module
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = DiffEngine;
+  } else {
+    global.DiffEngine = DiffEngine;
+  }
+
+})(typeof window !== 'undefined' ? window : this);
