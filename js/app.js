@@ -23,7 +23,8 @@
   const pasteChangedBtn = document.getElementById('pasteChangedBtn');
   const clearOriginalBtn = document.getElementById('clearOriginalBtn');
   const clearChangedBtn = document.getElementById('clearChangedBtn');
-  const copyResultBtn = document.getElementById('copyResultBtn');
+  const copyOriginalResultBtn = document.getElementById('copyOriginalResultBtn');
+  const copyChangedResultBtn = document.getElementById('copyChangedResultBtn');
 
   const tabButtons = document.querySelectorAll('.tab-btn');
   const optIgnoreWhitespace = document.getElementById('optIgnoreWhitespace');
@@ -59,45 +60,74 @@
   let cachedDiff = null;
   let currentSelectionInfo = null;
 
-  // Sample data
-  const SAMPLE_ORIGINAL = `function calculateTotal(items, taxRate) {
-  let subtotal = 0;
-  for (let i = 0; i < items.length; i++) {
-    subtotal += items[i].price;
+  // Sample data designed to showcase Word vs Char diff, Wrap Lines, Blank lines, Whitespace, and Case settings
+  const SAMPLE_ORIGINAL = `// Diffchecker Feature Showcase v1.0.0
+// This sample demonstrates: Word vs Char diff, Wrap Lines, Blank lines, Whitespace, and Case options.
+
+// 1. TYPO & CHARACTER DIFF (Switch between "Word Diff" and "Char Diff" to see whole-word vs single-letter edits)
+const themeConfig = {
+  colour: "grey",
+  maxRetries: 3,
+  apiVersion: "v1.2.0"
+};
+
+// 2. WORD-LEVEL & PHRASE MODIFICATIONS (Contiguous additions and removals merged seamlessly)
+function processOrder(order, user) {
+  // Validate order status
+  if (!order || order.status !== "pending") {
+    throw new Error("Invalid order status");
   }
 
-  // Calculate tax amount
-  const tax = subtotal * taxRate;
-  const total = subtotal + tax;
+  const subtotal = order.items.reduce((sum, item) => sum + item.price, 0);
+  return { subtotal, status: "processed" };
+}
 
-  return {
-    subtotal: subtotal,
-    tax: tax,
-    grandTotal: total
-  };
-}`;
+// 3. CASE SENSITIVITY (Toggle "Ignore Case" to hide or show casing differences)
+const API_AUTH_HEADER = "BEARER SECRET_TOKEN_123";
 
-  const SAMPLE_CHANGED = `function calculateTotal(items, taxRate = 0.05, discountRate = 0) {
-  let subtotal = 0;
-  for (const item of items) {
-    subtotal += item.price * (item.quantity || 1);
+// 4. WHITESPACE DIFFERENCES (Toggle "Ignore Whitespace" to ignore extra spacing and indentation)
+const   serverTimeout   =   5000;
+
+
+
+// 5. BLANK LINES (Toggle "Ignore Blank Lines" to ignore empty spacing lines between code blocks)
+// 6. LONG LINE WRAPPING (Toggle "Wrap Lines" to switch between automatic wrapping and horizontal code scrolling)
+const documentationNotice = "The billing service processes all transactions through the secure payment gateway, automatically applying local tax rates, seasonal discounts, and sending instant confirmation receipts to the registered customer email address.";
+`;
+
+  const SAMPLE_CHANGED = `// Diffchecker Feature Showcase v1.0.1
+// This sample demonstrates: Word vs Char diff, Wrap Lines, Blank lines, Whitespace, and Case options.
+
+// 1. TYPO & CHARACTER DIFF (Switch between "Word Diff" and "Char Diff" to see whole-word vs single-letter edits)
+const themeConfig = {
+  color: "gray",
+  maxRetries: 5,
+  apiVersion: "v1.2.1"
+};
+
+// 2. WORD-LEVEL & PHRASE MODIFICATIONS (Contiguous additions and removals merged seamlessly)
+function processOrder(order, user, currency = "USD") {
+  // Check and verify customer active status
+  if (!order || order.status !== "approved") {
+    throw new Error("Unauthorized or unapproved order");
   }
 
-  // Apply discount if provided
-  const discount = subtotal * discountRate;
-  const discountedSubtotal = subtotal - discount;
+  // Calculate subtotal with quantity and discount
+  const subtotal = order.items.reduce((sum, item) => sum + item.price * (item.qty || 1), 0);
+  const discount = order.coupon ? subtotal * 0.1 : 0;
+  return { subtotal: subtotal - discount, currency, status: "completed" };
+}
 
-  // Calculate final tax & total
-  const tax = discountedSubtotal * taxRate;
-  const grandTotal = discountedSubtotal + tax;
+// 3. CASE SENSITIVITY (Toggle "Ignore Case" to hide or show casing differences)
+const API_AUTH_HEADER = "Bearer secret_token_123";
 
-  return {
-    subtotal: subtotal,
-    discount: discount,
-    tax: tax,
-    grandTotal: Math.round(grandTotal * 100) / 100
-  };
-}`;
+// 4. WHITESPACE DIFFERENCES (Toggle "Ignore Whitespace" to ignore extra spacing and indentation)
+const serverTimeout = 5000;
+
+// 5. BLANK LINES (Toggle "Ignore Blank Lines" to ignore empty spacing lines between code blocks)
+// 6. LONG LINE WRAPPING (Toggle "Wrap Lines" to switch between automatic wrapping and horizontal code scrolling)
+const documentationNotice = "The billing service processes all transactions through the secure payment gateway, automatically applying local tax rates, seasonal discounts, and sending instant confirmation receipts to the registered customer email address.";
+`;
 
   // Initialize
   function init() {
@@ -172,7 +202,8 @@
     copyChangedBtn.addEventListener('click', () => copyInputText(changedInput, 'Changed'));
     pasteOriginalBtn.addEventListener('click', () => pasteText(originalInput));
     pasteChangedBtn.addEventListener('click', () => pasteText(changedInput));
-    copyResultBtn.addEventListener('click', copyDiffResults);
+    copyOriginalResultBtn.addEventListener('click', () => copyInputText(originalInput, 'Original'));
+    copyChangedResultBtn.addEventListener('click', () => copyInputText(changedInput, 'Changed'));
 
     // Mode Switcher Tabs (Word Diff vs Char Diff)
     tabButtons.forEach(btn => {
@@ -729,19 +760,6 @@
       }
       isSyncingRight = false;
     });
-  }
-
-  // Copy results helper
-  function copyDiffResults() {
-    const textToCopy = changedInput.value || originalInput.value;
-    if (!textToCopy) {
-      showToast('Nothing to copy');
-      return;
-    }
-
-    navigator.clipboard.writeText(textToCopy)
-      .then(() => showToast('Copied Changed text to clipboard'))
-      .catch(() => showToast('Failed to copy to clipboard'));
   }
 
   // Run on DOM ready

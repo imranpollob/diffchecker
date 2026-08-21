@@ -498,11 +498,28 @@ body {
   padding: 0 0.25rem;
 }
 
+.results-header-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  justify-content: flex-start;
+  min-width: 180px;
+}
+
 .stats-summary {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   font-size: 0.875rem;
+}
+
+.results-header-right {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 180px;
 }
 
 .stat-pill {

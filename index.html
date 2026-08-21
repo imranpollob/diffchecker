@@ -167,15 +167,25 @@
     <!-- Results Section -->
     <section class="results-section">
       <div class="results-header" id="resultsHeader" style="display: none;">
-        <div class="stats-summary" id="statsSummary"></div>
-        <div class="pane-actions">
-          <button id="copyResultBtn" class="btn-secondary" title="Copy Changed text">
+        <div class="results-header-left">
+          <button id="copyOriginalResultBtn" class="btn-secondary" title="Copy Original side text">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
             </svg>
-            Copy Changed Text
+            Copy Original
+          </button>
+        </div>
+        <div class="stats-summary" id="statsSummary"></div>
+        <div class="results-header-right">
+          <button id="copyChangedResultBtn" class="btn-secondary" title="Copy Changed side text">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            Copy Changed
           </button>
         </div>
       </div>
